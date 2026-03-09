@@ -11,6 +11,7 @@ import { PrivacyPolicy } from './pages/PrivacyPolicy';
 import { FAQ } from './pages/FAQ';
 import { AdminLogin } from './pages/AdminLogin';
 import { AdminDashboard } from './pages/AdminDashboard';
+import { AdminResetPassword } from './pages/AdminResetPassword';
 
 const App: React.FC = () => {
   return (
@@ -35,6 +36,7 @@ const App: React.FC = () => {
             {/* Admin Routes */}
             <Route path="/admin" element={<AdminLogin />} />
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/reset-password" element={<AdminResetPassword />} />
 
             <Route path="/requirements" element={
               <div className="min-h-[60vh] flex flex-col items-center justify-center p-8 text-center bg-slate-50">
