@@ -12,6 +12,8 @@ import { FAQ } from './pages/FAQ';
 import { AdminLogin } from './pages/AdminLogin';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { AdminResetPassword } from './pages/AdminResetPassword';
+import { Blog } from './pages/Blog';
+import { BlogPostDetail } from './pages/BlogPostDetail';
 
 const App: React.FC = () => {
   return (
@@ -29,6 +31,8 @@ const App: React.FC = () => {
             <Route path="/" element={<Home />} />
             <Route path="/fleet" element={<Fleet />} />
             <Route path="/booking" element={<Booking />} />
+            <Route path="/blog" element={<Blog />} />
+            <Route path="/blog/:id" element={<BlogPostDetail />} />
             <Route path="/terms" element={<TermsOfService />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/faq" element={<FAQ />} />

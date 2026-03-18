@@ -4,14 +4,27 @@ import { CarFront, Facebook, Instagram, Mail, Phone, MapPin, Video, Lock } from 
 import { APP_NAME } from '../constants';
 
 export const Footer: React.FC = () => {
+  const [logoError, setLogoError] = React.useState(false);
+
   return (
     <footer className="bg-black text-slate-300 pt-16 pb-8 border-t border-orange-900/30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
           {/* Brand */}
           <div className="col-span-1 md:col-span-1">
-            <div className="flex items-center gap-2 mb-4">
-              <CarFront className="text-orange-500" size={28} />
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 flex items-center justify-center">
+                {!logoError ? (
+                  <img 
+                    src="/logo.jpeg" 
+                    alt="Seff Car Rental Logo" 
+                    className="w-full h-full object-contain"
+                    onError={() => setLogoError(true)}
+                  />
+                ) : (
+                  <CarFront className="text-orange-500" size={36} />
+                )}
+              </div>
               <span className="text-2xl font-bold text-white tracking-tight">{APP_NAME}</span>
             </div>
             <p className="text-slate-400 mb-6 leading-relaxed text-sm">
@@ -21,7 +34,7 @@ export const Footer: React.FC = () => {
             {/* Social Media Icons */}
             <div className="flex space-x-4">
               <a 
-                href="https://www.facebook.com/p/SEFF-Car-Rental-Tacloban-City-61572580868799/" 
+                href="https://www.facebook.com/p/Seff-Car-Rental-Tacloban-City-61572580868799/" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="hover:text-orange-500 transition-colors" 
@@ -60,6 +73,7 @@ export const Footer: React.FC = () => {
           <div>
             <h4 className="text-white font-semibold text-lg mb-6 border-b-2 border-orange-600 inline-block pb-1">Quick Links</h4>
             <ul className="space-y-3 text-sm">
+              <li><Link to="/blog" className="hover:text-orange-500 transition-colors">Blog</Link></li>
               <li><Link to="/terms" className="hover:text-orange-500 transition-colors">Terms of Service</Link></li>
               <li><Link to="/privacy" className="hover:text-orange-500 transition-colors">Privacy Policy</Link></li>
               <li><Link to="/faq" className="hover:text-orange-500 transition-colors">FAQ</Link></li>

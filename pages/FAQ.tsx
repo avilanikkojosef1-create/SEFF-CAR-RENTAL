@@ -58,7 +58,7 @@ export const FAQ: React.FC = () => {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-extrabold text-slate-900 mb-4">Frequently Asked Questions</h1>
-          <p className="text-lg text-slate-600">Everything you need to know about renting with Seff Car.</p>
+          <p className="text-lg text-slate-600">Everything you need to know about renting with Seff Car Rental.</p>
         </div>
 
         <div className="space-y-6">

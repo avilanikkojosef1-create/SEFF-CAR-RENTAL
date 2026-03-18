@@ -16,6 +16,8 @@ export const AdminLogin: React.FC = () => {
   const TEMPLATE_ID = 'template_iwg5rh6';
   const PUBLIC_KEY = 'fI-S_OmFDBeHwzWkM';
 
+  const [logoError, setLogoError] = useState(false);
+
   useEffect(() => {
     const lockedTime = localStorage.getItem('adminLockedUntil');
     if (lockedTime) {
@@ -101,8 +103,17 @@ export const AdminLogin: React.FC = () => {
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
       <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-slate-200">
         <div className="text-center mb-8">
-            <div className={`w-16 h-16 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg ${isLocked ? 'bg-red-600 shadow-red-600/20' : 'bg-orange-600 shadow-orange-600/20'}`}>
-                {isLocked ? <AlertTriangle className="text-white" size={32} /> : <CarFront className="text-white" size={32} />}
+            <div className={`w-20 h-20 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg ${isLocked ? 'bg-red-600 shadow-red-600/20' : 'bg-orange-600 shadow-orange-600/20'}`}>
+                {!logoError ? (
+                  <img 
+                    src="/logo.jpeg" 
+                    alt="Seff Car Rental Logo" 
+                    className="w-16 h-16 object-contain"
+                    onError={() => setLogoError(true)}
+                  />
+                ) : (
+                  isLocked ? <AlertTriangle className="text-white" size={40} /> : <CarFront className="text-white" size={40} />
+                )}
             </div>
             <h1 className="text-2xl font-bold text-slate-900">Admin Portal</h1>
             <p className="text-slate-500 text-sm">Sign in to manage Seff Car Rental</p>

@@ -197,4 +197,4 @@ export const CAR_FLEET: Car[] = [
   }
 ];
 
-export const APP_NAME = "Seff Car";
+export const APP_NAME = "Seff Car Rental";

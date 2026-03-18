@@ -34,11 +34,21 @@ export interface Booking {
   created_at: string;
 }
 
+export interface Destination {
+  id: string;
+  name: string;
+  location: string;
+  description: string;
+  image_url: string;
+  created_at: string;
+}
+
 export interface BlogPost {
   id: string;
   title: string;
   content: string;
-  image_url?: string;
+  image_url: string;
   author: string;
   created_at: string;
+  updated_at?: string;
 }

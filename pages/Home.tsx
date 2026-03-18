@@ -4,22 +4,74 @@ import { CAR_FLEET } from '../constants';
 import { CarCard } from '../components/CarCard';
 import { ShieldCheck, UserCheck, ArrowRight, Search, ThumbsUp, Wallet, MapPin } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { Car } from '../types';
+import { Car, Destination } from '../types';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+
+const DEFAULT_DESTINATIONS: Destination[] = [
+  {
+    id: '1',
+    name: "Kalanggaman Island",
+    location: "Palompon, Leyte",
+    description: "Famous for its crystal clear waters and long white sandbar stretching into the sea.",
+    image_url: "https://picsum.photos/seed/kalanggaman/800/600",
+    created_at: ''
+  },
+  {
+    id: '2',
+    name: "San Juanico Bridge",
+    location: "Tacloban - Santa Rita",
+    description: "The longest bridge in the Philippines, connecting the islands of Leyte and Samar.",
+    image_url: "https://picsum.photos/seed/sanjuanico/800/600",
+    created_at: ''
+  },
+  {
+    id: '3',
+    name: "Sohoton Caves",
+    location: "Basey, Samar",
+    description: "A natural park featuring stunning limestone formations, caves, and a natural stone bridge.",
+    image_url: "https://picsum.photos/seed/sohoton/800/600",
+    created_at: ''
+  },
+  {
+    id: '4',
+    name: "Biri Rock Formations",
+    location: "Biri, Northern Samar",
+    description: "Massive rock formations carved by the powerful waves of the Pacific Ocean over millions of years.",
+    image_url: "https://picsum.photos/seed/birirocks/800/600",
+    created_at: ''
+  },
+  {
+    id: '5',
+    name: "Lake Danao",
+    location: "Ormoc, Leyte",
+    description: "A serene, guitar-shaped lake situated 650 meters above sea level, perfect for relaxation.",
+    image_url: "https://picsum.photos/seed/lakedanao/800/600",
+    created_at: ''
+  },
+  {
+    id: '6',
+    name: "Canigao Island",
+    location: "Matalom, Leyte",
+    description: "A small, uninhabited island known for its white sand beaches and vibrant marine life.",
+    image_url: "https://picsum.photos/seed/canigao/800/600",
+    created_at: ''
+  }
+];
 
 export const Home: React.FC = () => {
   const navigate = useNavigate();
   const [featuredCars, setFeaturedCars] = useState<Car[]>(CAR_FLEET.slice(0, 3));
+  const [destinations, setDestinations] = useState<Destination[]>(DEFAULT_DESTINATIONS);
   const [pickupDate, setPickupDate] = useState<Date | null>(null);
   const [destinationDate, setDestinationDate] = useState<Date | null>(null);
 
   useEffect(() => {
-    const fetchFeatured = async () => {
+    const fetchData = async () => {
        // Fetch top 3 cars
-       const { data } = await supabase.from('cars').select('*').limit(3).order('created_at', { ascending: false });
-       if (data && data.length > 0) {
-          const mappedCars: Car[] = data.map((c: any) => ({
+       const { data: carData } = await supabase.from('cars').select('*').limit(3).order('created_at', { ascending: false });
+       if (carData && carData.length > 0) {
+          const mappedCars: Car[] = carData.map((c: any) => ({
             id: c.id,
             name: c.name,
             category: c.category,
@@ -33,8 +85,14 @@ export const Home: React.FC = () => {
           }));
           setFeaturedCars(mappedCars);
        }
+
+       // Fetch destinations
+       const { data: destData } = await supabase.from('destinations').select('*').order('created_at', { ascending: true });
+       if (destData && destData.length > 0) {
+          setDestinations(destData as Destination[]);
+       }
     };
-    fetchFeatured();
+    fetchData();
   }, []);
 
   return (
@@ -122,10 +180,6 @@ export const Home: React.FC = () => {
               </div>
             </form>
           </div>
-
-          <h2 className="text-orange-500 font-bold tracking-[0.2em] uppercase mb-6 animate-fade-in-up text-sm md:text-base bg-black/80 inline-block px-6 py-2 rounded-full border border-orange-500/50 shadow-lg backdrop-blur-md">
-            Seff Car Rental
-          </h2>
           
           <h1 className="text-4xl md:text-7xl font-extrabold text-white mb-6 leading-tight tracking-tight drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)]">
             THE WHEELS THAT <br/>
@@ -258,6 +312,41 @@ export const Home: React.FC = () => {
         </div>
       </section>
 
+      {/* Top Destinations */}
+      <section className="py-24 bg-slate-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <span className="text-orange-600 font-bold tracking-wide uppercase text-sm">Explore the Region</span>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 mt-2">Top Destinations in Samar & Leyte</h2>
+            <p className="text-slate-500 mt-4 max-w-2xl mx-auto">Discover the hidden gems of Eastern Visayas. Rent a car with us and visit these breathtaking locations at your own pace.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {destinations.map((dest, idx) => (
+              <div key={dest.id || idx} className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-100">
+                <div className="relative h-64 overflow-hidden">
+                  <img 
+                    src={dest.image_url} 
+                    alt={dest.name} 
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="absolute top-4 left-4">
+                    <span className="bg-orange-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
+                      {dest.location}
+                    </span>
+                  </div>
+                </div>
+                <div className="p-6">
+                  <h3 className="text-xl font-bold text-slate-900 mb-2">{dest.name}</h3>
+                  <p className="text-slate-600 text-sm leading-relaxed">{dest.description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="py-24 bg-black text-white relative overflow-hidden">
         <div className="absolute top-0 right-0 -mt-20 -mr-20 w-96 h-96 bg-orange-600 rounded-full blur-3xl opacity-20"></div>
@@ -266,7 +355,7 @@ export const Home: React.FC = () => {
         <div className="relative z-10 max-w-4xl mx-auto px-4 text-center">
             <h2 className="text-4xl md:text-5xl font-extrabold mb-6">Ready to drive?</h2>
             <p className="text-xl text-slate-300 mb-10 max-w-2xl mx-auto">
-                Join thousands of satisfied customers who trust Seff Car for their travel needs in Tacloban. 
+                Join thousands of satisfied customers who trust Seff Car Rental for their travel needs in Tacloban. 
             </p>
             <div className="flex flex-col sm:flex-row justify-center gap-4">
                 <Link to="/fleet" className="bg-orange-600 text-white px-8 py-4 rounded-lg font-bold text-lg hover:bg-white hover:text-orange-600 transition-colors uppercase tracking-wide">

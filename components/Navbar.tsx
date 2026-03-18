@@ -5,6 +5,7 @@ import { APP_NAME } from '../constants';
 
 export const Navbar: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [logoError, setLogoError] = useState(false);
   const location = useLocation();
 
   const isActive = (path: string) => location.pathname === path;
@@ -26,9 +27,20 @@ export const Navbar: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-20">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 group">
-            <CarFront className="text-orange-600 group-hover:text-black transition-colors" size={32} />
-            <span className="font-bold text-xl tracking-tight uppercase">{APP_NAME}</span>
+          <Link to="/" className="flex items-center gap-3 group">
+            <div className="w-14 h-14 flex items-center justify-center">
+              {!logoError ? (
+                <img 
+                  src="/logo.jpeg" 
+                  alt="Seff Car Rental Logo" 
+                  className="w-full h-full object-contain"
+                  onError={() => setLogoError(true)}
+                />
+              ) : (
+                <CarFront className="text-orange-600 group-hover:text-black transition-colors" size={40} />
+              )}
+            </div>
+            <span className="font-bold text-xl tracking-tight">{APP_NAME}</span>
           </Link>
 
           {/* Desktop Nav */}
@@ -37,6 +49,7 @@ export const Navbar: React.FC = () => {
             <NavLink to="/fleet">Our Fleet</NavLink>
             <NavLink to="/requirements">Requirements</NavLink>
             <NavLink to="/about">About Us</NavLink>
+            <NavLink to="/blog">Blog</NavLink>
             <NavLink to="/contact">Contact</NavLink>
             <Link to="/booking" className="bg-orange-600 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-black transition-colors shadow-lg shadow-orange-600/20 text-sm uppercase">
               Book Now
@@ -63,6 +76,7 @@ export const Navbar: React.FC = () => {
             <NavLink to="/fleet">Our Fleet</NavLink>
             <NavLink to="/requirements">Requirements</NavLink>
             <NavLink to="/about">About Us</NavLink>
+            <NavLink to="/blog">Blog</NavLink>
             <NavLink to="/contact">Contact</NavLink>
             <Link to="/booking" onClick={() => setIsMenuOpen(false)} className="w-full bg-orange-600 text-white px-5 py-4 rounded-lg font-bold text-center uppercase tracking-wide hover:bg-black transition-colors">
               Book Now

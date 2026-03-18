@@ -1,18 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CAR_FLEET } from '../constants';
-import { Car, Booking } from '../types';
-import { LogOut, LayoutDashboard, Users, Plus, Edit, Trash2, Search, Save, X, Upload, Calendar, CheckCircle, XCircle, Loader2, AlertCircle, Database, Copy, Check, Settings, RefreshCw, Facebook, FileCheck } from 'lucide-react';
+import { Car, Booking, Destination, BlogPost } from '../types';
+import { LogOut, LayoutDashboard, Users, Plus, Edit, Trash2, Search, Save, X, Upload, Calendar, CheckCircle, XCircle, Loader2, AlertCircle, Database, Copy, Check, Settings, RefreshCw, Facebook, FileCheck, MapPin, FileText } from 'lucide-react';
 import { supabase, getSupabaseConfig } from '../lib/supabase';
 
 export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'fleet' | 'bookings' | 'blogs'>('fleet');
+  const [activeTab, setActiveTab] = useState<'fleet' | 'bookings' | 'blogs' | 'destinations'>('fleet');
   
   // Data State
   const [fleet, setFleet] = useState<Car[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [blogs, setBlogs] = useState<any[]>([]);
+  const [blogs, setBlogs] = useState<BlogPost[]>([]);
+  const [destinations, setDestinations] = useState<Destination[]>([]);
   const [loading, setLoading] = useState(true);
   const [needsSetup, setNeedsSetup] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
@@ -25,7 +26,11 @@ export const AdminDashboard: React.FC = () => {
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDestModalOpen, setIsDestModalOpen] = useState(false);
+  const [isBlogModalOpen, setIsBlogModalOpen] = useState(false);
   const [currentCar, setCurrentCar] = useState<Partial<Car>>({});
+  const [currentDest, setCurrentDest] = useState<Partial<Destination>>({});
+  const [currentBlog, setCurrentBlog] = useState<Partial<BlogPost>>({});
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
@@ -112,7 +117,23 @@ export const AdminDashboard: React.FC = () => {
              return;
          }
       } else if (blogData) {
-        setBlogs(blogData);
+        setBlogs(blogData as BlogPost[]);
+      }
+
+      // Fetch Destinations
+      const { data: destData, error: destError } = await supabase
+        .from('destinations')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (destError) {
+         if (destError.code === '42P01' || destError.message?.includes('does not exist')) {
+             setNeedsSetup(true);
+             setLoading(false);
+             return;
+         }
+      } else if (destData) {
+        setDestinations(destData as Destination[]);
       }
 
     } catch (e: any) {
@@ -182,12 +203,129 @@ export const AdminDashboard: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const openAddDestModal = () => {
+    setCurrentDest({
+      name: '',
+      location: '',
+      description: '',
+      image_url: ''
+    });
+    setImageFile(null);
+    setIsDestModalOpen(true);
+  };
+
+  const openEditDestModal = (dest: Destination) => {
+    setCurrentDest({ ...dest });
+    setImageFile(null);
+    setIsDestModalOpen(true);
+  };
+
+  const openAddBlogModal = () => {
+    setCurrentBlog({
+      title: '',
+      content: '',
+      author: 'Admin',
+      image_url: ''
+    });
+    setImageFile(null);
+    setIsBlogModalOpen(true);
+  };
+
+  const openEditBlogModal = (blog: BlogPost) => {
+    setCurrentBlog(blog);
+    setImageFile(null);
+    setIsBlogModalOpen(true);
+  };
+
+  const handleSaveBlog = async () => {
+    if (!currentBlog.title || !currentBlog.content) {
+      alert("Please fill in all required fields");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      let finalImageUrl = currentBlog.image_url;
+
+      if (imageFile) {
+        const fileExt = imageFile.name.split('.').pop();
+        const fileName = `blog-${Date.now()}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('car-images')
+          .upload(fileName, imageFile);
+
+        if (uploadError) {
+          console.warn("Image upload issue:", uploadError);
+          if (!finalImageUrl) finalImageUrl = 'https://via.placeholder.com/800x400?text=Blog+Image';
+        } else {
+          const { data: { publicUrl } } = supabase.storage
+            .from('car-images')
+            .getPublicUrl(fileName);
+          
+          finalImageUrl = publicUrl;
+        }
+      }
+
+      const blogData = {
+        title: currentBlog.title,
+        content: currentBlog.content,
+        author: currentBlog.author || 'Admin',
+        image_url: finalImageUrl
+      };
+
+      if (currentBlog.id) {
+        const { error } = await supabase
+          .from('blogs')
+          .update(blogData)
+          .eq('id', currentBlog.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('blogs')
+          .insert([blogData]);
+        if (error) throw error;
+      }
+
+      setIsBlogModalOpen(false);
+      fetchRealData();
+    } catch (error: any) {
+      console.error("Error saving blog:", error);
+      alert("Error saving blog: " + error.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteBlog = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this blog post?")) return;
+
+    try {
+      const { error } = await supabase
+        .from('blogs')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      fetchRealData();
+    } catch (error: any) {
+      console.error("Error deleting blog:", error);
+      alert("Error deleting blog: " + error.message);
+    }
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'car' | 'dest' | 'blog' = 'car') => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setImageFile(file);
       // Create a local preview
-      setCurrentCar(prev => ({ ...prev, imageUrl: URL.createObjectURL(file) }));
+      if (type === 'car') {
+        setCurrentCar(prev => ({ ...prev, imageUrl: URL.createObjectURL(file) }));
+      } else if (type === 'blog') {
+        setCurrentBlog(prev => ({ ...prev, image_url: URL.createObjectURL(file) }));
+      } else {
+        setCurrentDest(prev => ({ ...prev, image_url: URL.createObjectURL(file) }));
+      }
     }
   };
 
@@ -206,7 +344,7 @@ export const AdminDashboard: React.FC = () => {
       // 1. Upload Image to Supabase Storage if a new file is selected
       if (imageFile) {
         const fileExt = imageFile.name.split('.').pop();
-        const fileName = `${Date.now()}.${fileExt}`;
+        const fileName = `car-${Date.now()}.${fileExt}`;
         
         // Attempt upload
         const { error: uploadError } = await supabase.storage
@@ -254,6 +392,75 @@ export const AdminDashboard: React.FC = () => {
       alert(`Save Failed: ${error.message}`);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSaveDest = async () => {
+    setIsSaving(true);
+    
+    try {
+      if (!currentDest.name || !currentDest.location) {
+        alert("Please fill in both the destination name and location.");
+        setIsSaving(false);
+        return;
+      }
+
+      let finalImageUrl = currentDest.image_url;
+
+      // 1. Upload Image to Supabase Storage if a new file is selected
+      if (imageFile) {
+        const fileExt = imageFile.name.split('.').pop();
+        const fileName = `dest-${Date.now()}.${fileExt}`;
+        
+        // Attempt upload
+        const { error: uploadError } = await supabase.storage
+            .from('car-images')
+            .upload(fileName, imageFile);
+        
+        if (uploadError) {
+             console.warn("Image upload issue:", uploadError);
+             if (!finalImageUrl) finalImageUrl = 'https://via.placeholder.com/400x300?text=Destination';
+        } else {
+            const { data: { publicUrl } } = supabase.storage
+                .from('car-images')
+                .getPublicUrl(fileName);
+            finalImageUrl = publicUrl;
+        }
+      }
+
+      const dbData = {
+        name: currentDest.name,
+        location: currentDest.location,
+        description: currentDest.description,
+        image_url: finalImageUrl
+      };
+
+      if (currentDest.id) {
+        const { error } = await supabase.from('destinations').update(dbData).eq('id', currentDest.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('destinations').insert([dbData]);
+        if (error) throw error;
+      }
+
+      await fetchRealData();
+      setIsDestModalOpen(false);
+    } catch (error: any) {
+      console.error("Error saving destination", error);
+      alert(`Save Failed: ${error.message}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteDest = async (id: string) => {
+    if (confirm("Are you sure you want to delete this destination?")) {
+      const { error } = await supabase.from('destinations').delete().eq('id', id);
+      if (error) {
+        alert(`Delete Failed: ${error.message}`);
+      } else {
+        fetchRealData();
+      }
     }
   };
 
@@ -320,10 +527,21 @@ create table if not exists public.bookings (
 create table if not exists public.blogs (
   id uuid default gen_random_uuid() primary key,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()),
   title text not null,
   content text not null,
   image_url text,
   author text not null
+);
+
+-- 2.6. Create Destinations Table
+create table if not exists public.destinations (
+  id uuid default gen_random_uuid() primary key,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  name text not null,
+  location text not null,
+  description text,
+  image_url text
 );
 
 -- 3. Create Storage Bucket (If not exists)
@@ -335,6 +553,7 @@ on conflict (id) do nothing;
 alter table public.cars enable row level security;
 alter table public.bookings enable row level security;
 alter table public.blogs enable row level security;
+alter table public.destinations enable row level security;
 
 -- 5. Create Policies (Drop first to avoid "already exists" errors)
 -- Cars Policies
@@ -372,6 +591,19 @@ create policy "Public Update Blogs" on public.blogs for update using (true);
 
 drop policy if exists "Public Delete Blogs" on public.blogs;
 create policy "Public Delete Blogs" on public.blogs for delete using (true);
+
+-- Destinations Policies
+drop policy if exists "Public Read Destinations" on public.destinations;
+create policy "Public Read Destinations" on public.destinations for select using (true);
+
+drop policy if exists "Public Write Destinations" on public.destinations;
+create policy "Public Write Destinations" on public.destinations for insert with check (true);
+
+drop policy if exists "Public Update Destinations" on public.destinations;
+create policy "Public Update Destinations" on public.destinations for update using (true);
+
+drop policy if exists "Public Delete Destinations" on public.destinations;
+create policy "Public Delete Destinations" on public.destinations for delete using (true);
 
 -- Storage Policies
 drop policy if exists "Public Access Storage" on storage.objects;
@@ -514,7 +746,13 @@ create policy "Public Insert Storage" on storage.objects for insert with check (
               onClick={() => setActiveTab('blogs')}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors ${activeTab === 'blogs' ? 'bg-orange-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
             >
-                <FileCheck size={20} /> Blog Posts
+                <FileText size={20} /> Blog Posts
+            </button>
+            <button 
+              onClick={() => setActiveTab('destinations')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors ${activeTab === 'destinations' ? 'bg-orange-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+            >
+                <MapPin size={20} /> Destinations
             </button>
             
             <button 
@@ -538,10 +776,10 @@ create policy "Public Insert Storage" on storage.objects for insert with check (
                 <div className="flex items-center gap-4">
                     <div>
                         <h1 className="text-2xl font-bold text-slate-900">
-                          {activeTab === 'fleet' ? 'Fleet Management' : activeTab === 'bookings' ? 'Booking Requests' : 'Blog Posts'}
+                          {activeTab === 'fleet' ? 'Fleet Management' : activeTab === 'bookings' ? 'Booking Requests' : activeTab === 'blogs' ? 'Blog Posts' : 'Top Destinations'}
                         </h1>
                         <p className="text-slate-500">
-                          {activeTab === 'fleet' ? 'Manage your prices and images' : activeTab === 'bookings' ? 'View customer inquiries' : 'Manage your blog posts'}
+                          {activeTab === 'fleet' ? 'Manage your prices and images' : activeTab === 'bookings' ? 'View customer inquiries' : activeTab === 'blogs' ? 'Manage your blog posts' : 'Manage Explore the Region section'}
                         </p>
                     </div>
                     {isConnected !== null && (
@@ -718,11 +956,315 @@ create policy "Public Insert Storage" on storage.objects for insert with check (
                         </div>
                     )}
                 </div>
+                ) : activeTab === 'blogs' ? (
+                /* BLOGS TAB */
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
+                        <div className="relative flex-1 md:max-w-md">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                            <input type="text" placeholder="Search blog..." className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 outline-none" />
+                        </div>
+                        <button onClick={openAddBlogModal} className="bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-black transition-colors flex items-center gap-2">
+                            <Plus size={16} /> Add Blog Post
+                        </button>
+                    </div>
+                    {blogs.length === 0 ? (
+                        <div className="p-12 text-center text-slate-500">
+                            <AlertCircle className="mx-auto mb-3 opacity-50" size={48} />
+                            <p>No blog posts found. Click "Add Blog Post" to start.</p>
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                                        <th className="p-4 font-bold border-b border-slate-100">Post</th>
+                                        <th className="p-4 font-bold border-b border-slate-100">Author</th>
+                                        <th className="p-4 font-bold border-b border-slate-100">Category</th>
+                                        <th className="p-4 font-bold border-b border-slate-100 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="text-sm">
+                                    {blogs.map((blog) => (
+                                        <tr key={blog.id} className="hover:bg-slate-50 transition-colors">
+                                            <td className="p-4 border-b border-slate-100">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-12 h-12 rounded-lg bg-slate-100 overflow-hidden border border-slate-200">
+                                                        <img src={blog.image_url || 'https://via.placeholder.com/150'} alt="" className="w-full h-full object-cover" />
+                                                    </div>
+                                                    <div>
+                                                        <span className="font-bold text-slate-900 block">{blog.title}</span>
+                                                        <span className="text-xs text-slate-400 truncate max-w-[200px] block">{blog.content?.substring(0, 100)}...</span>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="p-4 border-b border-slate-100">
+                                                <span className="text-slate-600">{blog.author}</span>
+                                            </td>
+                                            <td className="p-4 border-b border-slate-100">
+                                                <span className="bg-slate-100 px-2 py-1 rounded text-xs font-bold uppercase border border-slate-200">Blog</span>
+                                            </td>
+                                            <td className="p-4 border-b border-slate-100 text-right">
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <button onClick={() => openEditBlogModal(blog)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                                                        <Edit size={16} />
+                                                    </button>
+                                                    <button onClick={() => handleDeleteBlog(blog.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+                ) : activeTab === 'destinations' ? (
+                /* DESTINATIONS TAB */
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
+                        <div className="relative flex-1 md:max-w-md">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                            <input type="text" placeholder="Search destination..." className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 outline-none" />
+                        </div>
+                        <button onClick={openAddDestModal} className="bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-black transition-colors flex items-center gap-2">
+                            <Plus size={16} /> Add Destination
+                        </button>
+                    </div>
+                    {destinations.length === 0 ? (
+                        <div className="p-12 text-center text-slate-500">
+                            <AlertCircle className="mx-auto mb-3 opacity-50" size={48} />
+                            <p>No destinations found. Click "Add Destination" to start.</p>
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                                        <th className="p-4 font-bold border-b border-slate-100">Destination</th>
+                                        <th className="p-4 font-bold border-b border-slate-100">Location</th>
+                                        <th className="p-4 font-bold border-b border-slate-100 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="text-sm">
+                                    {destinations.map((dest) => (
+                                        <tr key={dest.id} className="hover:bg-slate-50 transition-colors">
+                                            <td className="p-4 border-b border-slate-100">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-12 h-12 rounded-lg bg-slate-100 overflow-hidden border border-slate-200">
+                                                        <img src={dest.image_url || 'https://via.placeholder.com/150'} alt="" className="w-full h-full object-cover" />
+                                                    </div>
+                                                    <div>
+                                                        <span className="font-bold text-slate-900 block">{dest.name}</span>
+                                                        <span className="text-xs text-slate-400 truncate max-w-[200px] block">{dest.description}</span>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="p-4 border-b border-slate-100">
+                                                <span className="bg-slate-100 px-2 py-1 rounded text-xs font-bold uppercase border border-slate-200">{dest.location}</span>
+                                            </td>
+                                            <td className="p-4 border-b border-slate-100 text-right">
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <button onClick={() => openEditDestModal(dest)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                                                        <Edit size={16} />
+                                                    </button>
+                                                    <button onClick={() => handleDeleteDest(dest.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
                 ) : null}
                 </>
             )}
         </div>
       </main>
+
+      {/* BLOG MODAL */}
+      {isBlogModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h3 className="font-bold text-lg text-slate-900">
+                {currentBlog.id ? 'Edit Blog Post' : 'Add New Blog Post'}
+              </h3>
+              <button onClick={() => setIsBlogModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              {/* Image Upload */}
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700">Cover Image</label>
+                <div className="relative group cursor-pointer border-2 border-dashed border-slate-300 rounded-xl p-4 hover:border-orange-500 transition-colors text-center bg-slate-50">
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={(e) => handleImageChange(e, 'blog')}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                  {currentBlog.image_url ? (
+                    <img src={currentBlog.image_url} alt="Preview" className="h-48 w-full object-cover rounded-lg" />
+                  ) : (
+                    <div className="py-8">
+                      <Upload className="mx-auto text-slate-400 mb-2" size={32} />
+                      <p className="text-sm text-slate-500">Click to upload cover image</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-bold text-slate-700">Title</label>
+                  <input 
+                    type="text" 
+                    value={currentBlog.title || ''} 
+                    onChange={e => setCurrentBlog(prev => ({...prev, title: e.target.value}))}
+                    placeholder="Post title"
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-bold text-slate-700">Author</label>
+                  <input 
+                    type="text" 
+                    value={currentBlog.author || ''} 
+                    onChange={e => setCurrentBlog(prev => ({...prev, author: e.target.value}))}
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-bold text-slate-700">Content (Markdown supported)</label>
+                <textarea 
+                  value={currentBlog.content || ''} 
+                  onChange={e => setCurrentBlog(prev => ({...prev, content: e.target.value}))}
+                  rows={10}
+                  placeholder="Write your post content here..."
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono"
+                />
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+              <button 
+                onClick={() => setIsBlogModalOpen(false)}
+                className="px-4 py-2 text-sm font-bold text-slate-600 hover:text-slate-800"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleSaveBlog}
+                disabled={isSaving}
+                className="bg-orange-600 text-white px-6 py-2 rounded-lg text-sm font-bold hover:bg-orange-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+              >
+                {isSaving ? <><Loader2 size={16} className="animate-spin" /> Saving...</> : <><Save size={16} /> Save Blog Post</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DESTINATION MODAL */}
+      {isDestModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h3 className="font-bold text-lg text-slate-900">
+                {currentDest.id ? 'Edit Destination' : 'Add New Destination'}
+              </h3>
+              <button onClick={() => setIsDestModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              {/* Image Upload */}
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700">Destination Image</label>
+                <div className="relative group cursor-pointer border-2 border-dashed border-slate-300 rounded-xl p-4 hover:border-orange-500 transition-colors text-center bg-slate-50">
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={(e) => handleImageChange(e, 'dest')}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                  {currentDest.image_url ? (
+                    <img src={currentDest.image_url} alt="Preview" className="h-40 w-full object-cover rounded-lg" />
+                  ) : (
+                    <div className="py-8">
+                      <Upload className="mx-auto text-slate-400 mb-2" size={32} />
+                      <p className="text-sm text-slate-500">Click to upload image</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-bold text-slate-700">Name</label>
+                <input 
+                  type="text" 
+                  value={currentDest.name || ''} 
+                  onChange={e => setCurrentDest(prev => ({...prev, name: e.target.value}))}
+                  placeholder="e.g. Kalanggaman Island"
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-bold text-slate-700">Location</label>
+                <input 
+                  type="text" 
+                  value={currentDest.location || ''} 
+                  onChange={e => setCurrentDest(prev => ({...prev, location: e.target.value}))}
+                  placeholder="e.g. Palompon, Leyte"
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-bold text-slate-700">Description</label>
+                <textarea 
+                  value={currentDest.description || ''} 
+                  onChange={e => setCurrentDest(prev => ({...prev, description: e.target.value}))}
+                  rows={3}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+              <button 
+                onClick={() => setIsDestModalOpen(false)}
+                className="px-4 py-2 text-sm font-bold text-slate-600 hover:text-slate-800"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleSaveDest}
+                disabled={isSaving}
+                className="bg-orange-600 text-white px-6 py-2 rounded-lg text-sm font-bold hover:bg-orange-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+              >
+                {isSaving ? <><Loader2 size={16} className="animate-spin" /> Saving...</> : <><Save size={16} /> Save Destination</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* EDIT/ADD MODAL */}
       {isModalOpen && (
